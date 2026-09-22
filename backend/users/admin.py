@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from users.models import User
+from users.models import Subscription, User
 
 
 @admin.register(User)
@@ -14,9 +14,6 @@ class CustomUserAdmin(UserAdmin):
         'last_name',
         'email',
         'avatar'
-    )
-    list_filter = (
-        'username',
     )
     search_fields = (
         'username',
@@ -46,4 +43,20 @@ class CustomUserAdmin(UserAdmin):
                 )
             },
         ),
+    )
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    """Управление подписками."""
+
+    list_display = (
+        'user',
+        'author',
+    )
+    search_fields = (
+        'user__username',
+        'user__email',
+        'author__username',
+        'author__email',
     )
