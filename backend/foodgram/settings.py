@@ -18,7 +18,11 @@ ALLOWED_HOSTS = os.getenv(
 ).split(',')
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://sprint.bounceme.net',
+    origin.strip()
+    for origin in os.getenv(
+        'CSRF_TRUSTED_ORIGINS', ''
+    ).split(',')
+    if origin.strip()
 ]
 
 INSTALLED_APPS = [
@@ -30,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework.authtoken',
     'rest_framework',
+    'django_filters',
     'djoser',
     'users.apps.UsersConfig',
     'recipes.apps.RecipesConfig',
@@ -84,12 +89,9 @@ else:
             'USER': os.getenv('POSTGRES_USER', 'foodgram_user'),
             'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
             'HOST': os.getenv('DB_HOST', 'db'),
-            'PORT': os.getenv('DB_PORT', 5432),
+            'PORT': os.getenv('DB_PORT', '5432'),
         }
     }
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -124,16 +126,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.IsAuthenticated',
-#     ],
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
+    'DEFAULT_PAGINATION_CLASS': (
+        'api.pagination.LimitPageNumberPagination'
+    ),
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
+}
 
-#     'DEFAULT_AUTHENTICATION_CLASSES': [
-#         'rest_framework.authentication.TokenAuthentication',
-#     ],
-
-#     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-#     'PAGE_SIZE': 10,
-
-# }
+DJOSER = {
+    'LOGIN_FIELD': 'email',
+    'HIDE_USERS': False,
+    'SERIALIZERS': {
+        'user_create': 'api.serializers.UserCreateSerializer',
+        'user': 'api.serializers.UserSerializer',
+        'current_user': 'api.serializers.UserSerializer',
+    },
+}

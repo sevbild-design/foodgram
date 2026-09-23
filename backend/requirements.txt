@@ -8,3 +8,4 @@ pytest-django==4.9.0
 pytest-pythonpath==0.7.3
 PyYAML==6.0.1
 python-dotenv==1.0.1
+django-filter==24.3

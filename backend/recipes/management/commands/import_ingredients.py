@@ -7,7 +7,6 @@ from django.db import transaction
 
 from recipes.models import Ingredient
 
-
 DEFAULT_DATA_PATH = (
     settings.BASE_DIR.parent / 'data' / 'ingredients.json'
 )
