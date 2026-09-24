@@ -2,10 +2,17 @@ from django.contrib.auth import get_user_model
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import (AllowAny, IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
-from api.serializers import AvatarSerializer, UserWithRecipesSerializer
+from api.filters import IngredientFilter, RecipeFilter
+from api.permissions import IsAuthorOrReadOnly
+from api.serializers import (AvatarSerializer, IngredientSerializer,
+                             RecipeReadSerializer, RecipeWriteSerializer,
+                             TagSerializer, UserWithRecipesSerializer)
+from recipes.models import Ingredient, Recipe, Tag
 from users.models import Subscription
 
 User = get_user_model()
@@ -15,6 +22,7 @@ class UserViewSet(DjoserUserViewSet):
     """Вьюсет для работы с пользователями."""
 
     def get_permissions(self):
+
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
 
@@ -28,7 +36,6 @@ class UserViewSet(DjoserUserViewSet):
     )
     def avatar(self, request):
         user = request.user
-
         if request.method == 'PUT':
             serializer = AvatarSerializer(
                 user,
@@ -36,7 +43,6 @@ class UserViewSet(DjoserUserViewSet):
                 context={'request': request},
             )
             serializer.is_valid(raise_exception=True)
-
             old_avatar = user.avatar if user.avatar else None
             serializer.save()
 
@@ -47,7 +53,6 @@ class UserViewSet(DjoserUserViewSet):
                 serializer.data,
                 status=status.HTTP_200_OK,
             )
-
         if user.avatar:
             user.avatar.delete(save=False)
             user.avatar = None
@@ -61,11 +66,13 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=(IsAuthenticated,),
     )
     def subscriptions(self, request):
+
         authors = User.objects.filter(
             subscribers__user=request.user
         ).order_by('id')
 
         page = self.paginate_queryset(authors)
+
         serializer = UserWithRecipesSerializer(
             page,
             many=True,
@@ -88,7 +95,6 @@ class UserViewSet(DjoserUserViewSet):
                     {'errors': 'Нельзя подписаться на самого себя.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             _, created = Subscription.objects.get_or_create(
                 user=request.user,
                 author=author,
@@ -99,7 +105,6 @@ class UserViewSet(DjoserUserViewSet):
                     {'errors': 'Вы уже подписаны на этого пользователя.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             serializer = UserWithRecipesSerializer(
                 author,
                 context=self.get_serializer_context(),
@@ -108,7 +113,6 @@ class UserViewSet(DjoserUserViewSet):
                 serializer.data,
                 status=status.HTTP_201_CREATED,
             )
-
         deleted_count, _ = Subscription.objects.filter(
             user=request.user,
             author=author,
@@ -119,5 +123,71 @@ class UserViewSet(DjoserUserViewSet):
                 {'errors': 'Вы не подписаны на этого пользователя.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TagViewSet(ReadOnlyModelViewSet):
+    """Предоставляет публичное чтение списка и отдельных тегов."""
+
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = (AllowAny,)
+    pagination_class = None
+
+
+class IngredientViewSet(ReadOnlyModelViewSet):
+    """Предоставляет публичное чтение и поиск ингредиентов."""
+
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
+    permission_classes = (AllowAny,)
+    filterset_class = IngredientFilter
+    pagination_class = None
+
+
+class RecipeViewSet(ModelViewSet):
+    """Предоставляет создание, чтение, изменение и удаление рецептов."""
+
+    queryset = Recipe.objects.select_related(
+        'author',
+    ).prefetch_related(
+        'tags',
+        'recipe_ingredients__ingredient',
+    )
+    permission_classes = (
+        IsAuthenticatedOrReadOnly,
+        IsAuthorOrReadOnly,
+    )
+    filterset_class = RecipeFilter
+
+    def get_serializer_class(self):
+
+        if self.action in (
+            'create',
+            'update',
+            'partial_update',
+        ):
+            return RecipeWriteSerializer
+
+        return RecipeReadSerializer
+
+    def perform_create(self, serializer):
+
+        serializer.save(author=self.request.user)
+
+    @action(
+        detail=True,
+        methods=('get',),
+        url_path='get-link',
+        permission_classes=(AllowAny,),
+    )
+    def get_link(self, request, *args, **kwargs):
+
+        recipe = self.get_object()
+        recipe_link = request.build_absolute_uri(
+            f'/recipes/{recipe.id}'
+        )
+        return Response(
+            {'short-link': recipe_link},
+            status=status.HTTP_200_OK,
+        )
