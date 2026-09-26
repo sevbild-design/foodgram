@@ -6,8 +6,8 @@ volumes:
 services:
   db:
     image: postgres:13
-    env_file:
-      - ../.env
+    restart: always
+    env_file: .env
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,18 +19,12 @@ services:
       retries: 10
 
   backend:
-    build:
-      context: ../backend
-    env_file:
-      - ../.env
+    image: ${DOCKER_USERNAME}/foodgram_backend:latest
+    restart: always
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
-    restart: on-failure
-    command:
-      - /bin/sh
-      - -c
-      - python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn --bind 0.0.0.0:8000 foodgram.wsgi:application
     volumes:
       - static:/app/backend_static
       - media:/app/media
@@ -40,19 +34,18 @@ services:
       - "8000"
 
   frontend:
-    build:
-      context: ../frontend
+    image: ${DOCKER_USERNAME}/foodgram_frontend:latest
     volumes:
       - frontend:/frontend_static
-  nginx:
-    build: .
+  gateway:
+    image: ${DOCKER_USERNAME}/foodgram_gateway:latest
 
     depends_on:
       - backend
       - frontend
 
     ports:
-      - "80:80"
+      - "8000:80"
 
     volumes:
       - frontend:/usr/share/nginx/html:ro
