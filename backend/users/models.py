@@ -6,7 +6,11 @@ from users.constants import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 
 class User(AbstractUser):
     """
-    Переопределение модели пользователя.
+    Кастомная модель пользователя.
+
+    Поля 'Имя' и 'Фамилия' обязательные.
+    Стандартная модель расширена добавлением аватара.
+    Для входа используется email вместо username.
     """
 
     first_name = models.CharField(
@@ -28,9 +32,7 @@ class User(AbstractUser):
         blank=True,
         null=True,
     )
-
     USERNAME_FIELD = 'email'
-
     REQUIRED_FIELDS = (
         'username',
         'first_name',
@@ -40,14 +42,20 @@ class User(AbstractUser):
     class Meta:
         ordering = ('username',)
         verbose_name = 'Пользователь'
-        verbose_name_plural = 'Пользователи'
+        verbose_name_plural = 'пользователи'
 
     def __str__(self):
         return self.username
 
 
 class Subscription(models.Model):
-    """Подписка пользователя на автора рецептов."""
+    """
+    Модель подписки одного пользователя на другого.
+
+    Одна и та же пара подписчик–автор может существовать только раз.
+    При удалении автора или подписчика удаляются и связанные подписки.
+    Невозможна подписка на самого себя.
+    """
 
     user = models.ForeignKey(
         User,
@@ -64,7 +72,7 @@ class Subscription(models.Model):
 
     class Meta:
         verbose_name = 'Подписка'
-        verbose_name_plural = 'Подписки'
+        verbose_name_plural = 'подписки'
         constraints = (
             models.UniqueConstraint(
                 fields=('user', 'author'),

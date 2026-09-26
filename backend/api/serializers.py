@@ -28,7 +28,16 @@ class UserCreateSerializer(DjoserUserCreateSerializer):
 
 
 class UserSerializer(DjoserUserSerializer):
-    """Сериализатор отображения пользователя."""
+    """
+    Сериализатор отображения пользователя.
+
+    Метод get_is_subscribed подписку на автора
+    без повторных запросов к базе.
+    При первом вызове получает одним запросом идентификаторы всех
+    авторов подписок и сохраняет их в контексте сериализатора.
+    Последующие вызовы используют кеш, предотвращая N+1-запросы.
+    Для анонимного пользователя возвращает False.
+    """
 
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.ImageField(read_only=True)
@@ -46,19 +55,29 @@ class UserSerializer(DjoserUserSerializer):
         )
 
     def get_is_subscribed(self, author):
+
         request = self.context.get('request')
 
-        return (
-            request is not None
-            and request.user.is_authenticated
-            and request.user.subscriptions.filter(
-                author=author
-            ).exists()
-        )
+        if request is None or not request.user.is_authenticated:
+            return False
+
+        cache_key = '_subscribed_author_ids'
+        subscribed_author_ids = self.context.get(cache_key)
+
+        if subscribed_author_ids is None:
+            subscribed_author_ids = set(
+                request.user.subscriptions.values_list(
+                    'author_id',
+                    flat=True,
+                )
+            )
+            self.context[cache_key] = subscribed_author_ids
+
+        return author.id in subscribed_author_ids
 
 
 class AvatarSerializer(serializers.ModelSerializer):
-    """Сериализатор загрузки аватара."""
+    """Проверяет и сохраняет аватар текущего пользователя."""
 
     avatar = Base64ImageField(
         required=True,
@@ -83,7 +102,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class IngredientSerializer(serializers.ModelSerializer):
-    """Преобразует ингредиент и его единицу измерения в JSON."""
+    """Сериализатор модели Ingredient."""
 
     class Meta:
         model = Ingredient
@@ -108,7 +127,20 @@ class RecipeShortSerializer(serializers.ModelSerializer):
 
 
 class UserWithRecipesSerializer(UserSerializer):
-    """Расширяет профиль автора списком и количеством его рецептов."""
+    """
+    Расширяет профиль автора списком и количеством его рецептов.
+
+    Расширяет UserSerializer полями recipes и recipes_count. Поле recipes
+    поддерживает ограничение количества объектов через query-параметр
+    recipes_limit.
+    При наличии предзагруженных и аннотированных данных сериализатор
+    использует их без дополнительных запросов к базе. Запасные запросы
+    выполняются при сериализации отдельного автора, например после
+    создания подписки.
+    Методы:
+    get_recipes: Формирует краткий список рецептов автора.
+    get_recipes_count: Возвращает общее количество рецептов автора.
+    """
 
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
@@ -120,11 +152,18 @@ class UserWithRecipesSerializer(UserSerializer):
         )
 
     def get_recipes(self, author):
-        recipes = author.recipes.all()
+
+        recipes = getattr(
+            author,
+            'prefetched_recipes',
+            None,
+        )
+        if recipes is None:
+            recipes = author.recipes.all()
         request = self.context.get('request')
+
         if request is not None:
             recipes_limit = request.query_params.get('recipes_limit')
-
             if recipes_limit is not None:
                 try:
                     recipes_limit = int(recipes_limit)
@@ -132,13 +171,11 @@ class UserWithRecipesSerializer(UserSerializer):
                     raise serializers.ValidationError(
                         'Параметр recipes_limit должен быть целым числом.'
                     ) from error
-
                 if recipes_limit < 0:
                     raise serializers.ValidationError(
                         'Параметр recipes_limit не может быть отрицательным.'
                     )
                 recipes = recipes[:recipes_limit]
-
         return RecipeShortSerializer(
             recipes,
             many=True,
@@ -146,6 +183,9 @@ class UserWithRecipesSerializer(UserSerializer):
         ).data
 
     def get_recipes_count(self, author):
+
+        if hasattr(author, 'recipes_count_value'):
+            return author.recipes_count_value
 
         return author.recipes.count()
 
@@ -183,7 +223,23 @@ class IngredientInRecipeWriteSerializer(serializers.Serializer):
 
 
 class RecipeReadSerializer(serializers.ModelSerializer):
-    """Возвращает полную информацию о рецепте."""
+    """
+    Формирует полное представление рецепта.
+
+    Методы:
+    _is_in_user_list:
+    Выполняет общую проверку нахождения рецепта в пользовательском
+    списке. Сначала использует указанную аннотацию, а при её
+    отсутствии проверяет связь через менеджер модели.
+    get_is_favorited:
+    Передаёт общей проверке аннотацию is_favorited_by_user
+    и обратную связь favorites для определения наличия рецепта
+    в избранном.
+    get_is_in_shopping_cart:
+    Передаёт общей проверке аннотацию
+    is_in_shopping_cart_by_user и обратную связь shopping_cart
+    для определения наличия рецепта в списке покупок.
+    """
 
     tags = TagSerializer(
         many=True,
@@ -215,28 +271,84 @@ class RecipeReadSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def _is_in_user_list(self, recipe, relation_name):
+    def _is_in_user_list(
+        self,
+        recipe,
+        annotation_name,
+        relation_name,
+    ):
 
         request = self.context.get('request')
-
         if request is None or not request.user.is_authenticated:
             return False
 
+        if hasattr(recipe, annotation_name):
+            return getattr(recipe, annotation_name)
+
         relation_manager = getattr(recipe, relation_name)
 
-        return relation_manager.filter(user=request.user).exists()
+        return relation_manager.filter(
+            user=request.user,
+        ).exists()
 
     def get_is_favorited(self, recipe):
 
-        return self._is_in_user_list(recipe, 'favorites')
+        return self._is_in_user_list(
+            recipe=recipe,
+            annotation_name='is_favorited_by_user',
+            relation_name='favorites',
+        )
 
     def get_is_in_shopping_cart(self, recipe):
 
-        return self._is_in_user_list(recipe, 'shopping_cart')
+        return self._is_in_user_list(
+            recipe=recipe,
+            annotation_name='is_in_shopping_cart_by_user',
+            relation_name='shopping_cart',
+        )
 
 
 class RecipeWriteSerializer(serializers.ModelSerializer):
-    """Создание и обновление рецепта."""
+    """
+    Проверка данных и создание или обновление рецепта.
+
+    Изображение принимается как строка Base64 и преобразуется в
+    файл с помощью Base64ImageField.
+    Минимальное время приготовления ограничено константой MIN_COOKING_TIME.
+    Поля ingredients и tags обязательны как при создании,
+    так и при частичном обновлении рецепта.
+    Создание и обновление выполняются внутри атомарных транзакций.
+    Поэтому при ошибке сохранения тегов или ингредиентов все изменения
+    текущей операции откатываются.
+    При обновлении старые связи с тегами и ингредиентами полностью
+    заменяются данными из запроса. После сохранения результат передаётся
+    RecipeReadSerializer, чтобы API вернул полное представление рецепта,
+    а не входной формат с идентификаторами.
+    Методы:
+    validate_ingredients:
+    Проверяет, что один ингредиент не указан в рецепте несколько раз.
+    При обнаружении повторяющихся идентификаторов возвращает
+    ошибку валидации поля ingredients.
+    validate_tags:
+    Проверяет уникальность тегов внутри одного рецепта.
+    Повторяющиеся идентификаторы вызывают ошибку валидации.
+    validate:
+    Выполняет общую проверку запроса и требует присутствия полей
+    ingredients и tags, включая запросы PATCH.
+    _create_recipe_ingredients:
+    Формирует объекты промежуточной модели IngredientInRecipe
+    и сохраняет все связи одним вызовом bulk_create.
+    create:
+    Извлекает данные тегов и ингредиентов, создаёт основной объект Recipe,
+    устанавливает теги и сохраняет состав рецепта.
+    Поле author передаётся представлением при вызове save().
+    update:
+    Обновляет основные поля рецепта, заменяет набор тегов, удаляет
+    прежний состав и создаёт новые связи с ингредиентами.
+    to_representation:
+    Передаёт сохранённый объект в RecipeReadSerializer и возвращает
+    полную структуру рецепта для ответа API.
+    """
 
     ingredients = IngredientInRecipeWriteSerializer(
         many=True,

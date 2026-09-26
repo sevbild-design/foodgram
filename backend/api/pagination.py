@@ -1,9 +1,18 @@
 from rest_framework.pagination import PageNumberPagination
 
+from api.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+
 
 class LimitPageNumberPagination(PageNumberPagination):
-    """Пагинация с возможностью задавать размер страницы."""
+    """
+    Пагинация с возможностью задавать размер страницы.
 
-    page_size = 6
+    limit - параметр, задающий размер страницы.
+    Если не передан limit, вернется значение по умолчанию,
+    заданное в константе DEFAULT_PAGE_SIZE.
+    Максимальный размер страницы задан константой MAX_PAGE_SIZE.
+    """
+
+    page_size = DEFAULT_PAGE_SIZE
     page_size_query_param = 'limit'
-    max_page_size = 100
+    max_page_size = MAX_PAGE_SIZE

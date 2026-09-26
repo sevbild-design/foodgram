@@ -10,7 +10,10 @@ from recipes.constants import (INGREDIENT_NAME_MAX_LENGTH,
 
 class Tag(models.Model):
     """
-    Tag
+    Модель тегов.
+
+    Категория рецепта, например «Завтрак» или «Ужин».
+    Название тега уникально. Сортировка по алфавиту.
     """
 
     name = models.CharField(
@@ -34,7 +37,12 @@ class Tag(models.Model):
 
 
 class Ingredient(models.Model):
-    """Ingredient"""
+    """
+    Модель ингредиента.
+
+    Продукт и единица, в которой измеряется его количество.
+    Пара продукт-единица измерения уникальна.
+    """
 
     name = models.CharField(
         verbose_name='Наименование',
@@ -61,7 +69,16 @@ class Ingredient(models.Model):
 
 
 class Recipe(models.Model):
-    """Recipe"""
+    """
+    Модель рецепта.
+
+    При удалении автора удаляются и его рецепты.
+    Файл изображения сохраняется в MEDIA_ROOT/recipes/images/.
+    Минимальное время приготовления задано константой MIN_COOKING_TIME.
+    Ингредиенты описаны через промежуточную модель IngredientInRecipe.
+    В IngredientInRecipe добавлено кол-во ингредиента.
+    Время создания заполняется один раз при первой записи объекта в базу.
+    """
 
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -109,7 +126,14 @@ class Recipe(models.Model):
 
 
 class IngredientInRecipe(models.Model):
-    """IngredientInRecipe"""
+    """
+    Промежуточная модель с количеством ингредиента в рецепте.
+
+    Удаление ингредиента удаляет его вхождения в состав рецептов.
+    Кол-во ингредиента - целое положительное число,
+    минимальное кол-во в константе MIN_INGREDIENT_AMOUNT.
+    Один ингредиент нельзя дважды добавить в один рецепт.
+    """
 
     recipe = models.ForeignKey(
         Recipe,
@@ -145,7 +169,12 @@ class IngredientInRecipe(models.Model):
 
 
 class Favorite(models.Model):
-    """Рецепт, добавленный пользователем в избранное."""
+    """
+    Модель избранное.
+
+    Рецепт, добавленный пользователем в избранное.
+    Пара пользователь-рецепт уникальна.
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -161,7 +190,7 @@ class Favorite(models.Model):
     class Meta:
         default_related_name = 'favorites'
         verbose_name = 'Избранное'
-        verbose_name_plural = 'Избранное'
+        verbose_name_plural = 'избранное'
         constraints = (
             models.UniqueConstraint(
                 fields=('user', 'recipe'),
@@ -174,7 +203,12 @@ class Favorite(models.Model):
 
 
 class ShoppingCart(models.Model):
-    """Рецепт, добавленный пользователем в список покупок."""
+    """
+    Список покупок.
+
+    Рецепт, добавленный пользователем в список покупок.
+    При удалении пользователя или рецепта связанная запись тоже удаляется.
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

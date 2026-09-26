@@ -6,6 +6,12 @@ from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
+    """
+    Отображение тегов в админ панели.
+
+    Поиск по полям name и slug.
+    """
+
     list_display = (
         'name',
         'slug',
@@ -18,6 +24,12 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
+    """
+    Отображение ингредиентов в админ панели.
+
+    Поиск по полю name.
+    """
+
     list_display = (
         'name',
         'measurement_unit',
@@ -28,12 +40,16 @@ class IngredientAdmin(admin.ModelAdmin):
 
 
 class IngredientInRecipeInline(admin.TabularInline):
+    """Позволяет редактировать состав прямо в форме рецепта."""
+
     model = IngredientInRecipe
     extra = 1
 
 
 @admin.register(IngredientInRecipe)
 class IngredientInRecipeAdmin(admin.ModelAdmin):
+    """Отдельный раздел для просмотра связей рецепт–ингредиент."""
+
     list_display = (
         'recipe',
         'ingredient',
@@ -47,6 +63,14 @@ class IngredientInRecipeAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
+    """
+    Отображение рецептов в админ панели.
+
+    Поиск по названию, username или email автора.
+    Добавлен фильтр по тегам.
+    Состав рецепта отображается внутри основной формы.
+    """
+
     list_display = (
         'name',
         'author',
@@ -76,6 +100,8 @@ class RecipeAdmin(admin.ModelAdmin):
 
 @admin.register(Favorite)
 class FavoriteAdmin(admin.ModelAdmin):
+    """Показывает связи пользователей с избранными рецептами."""
+
     list_display = (
         'user',
         'recipe',
@@ -88,6 +114,8 @@ class FavoriteAdmin(admin.ModelAdmin):
 
 @admin.register(ShoppingCart)
 class ShoppingCartAdmin(admin.ModelAdmin):
+    """Показывает содержимое пользовательских списков покупок."""
+
     list_display = (
         'user',
         'recipe',
