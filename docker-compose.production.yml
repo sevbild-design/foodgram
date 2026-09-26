@@ -28,7 +28,7 @@ services:
     volumes:
       - static:/backend_static
       - media:/app/media
-      - ../data:/data:ro
+      - ./data:/data:ro
 
     expose:
       - "8000"
@@ -51,4 +51,4 @@ services:
       - frontend:/usr/share/nginx/html:ro
       - static:/var/html/static:ro
       - media:/var/html/media:ro
-      - ../docs:/var/html/docs:ro
+      - ./docs:/var/html/docs:ro
