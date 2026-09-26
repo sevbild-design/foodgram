@@ -51,4 +51,3 @@ services:
       - frontend:/usr/share/nginx/html:ro
       - static:/var/html/static:ro
       - media:/var/html/media:ro
-      - ./docs:/var/html/docs:ro

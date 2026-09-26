@@ -100,7 +100,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.production.yml,data,docs"
+          source: "docker-compose.production.yml,data"
           target: "foodgram"
 
       - name: Deploy Foodgram
