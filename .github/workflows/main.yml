@@ -27,7 +27,8 @@ jobs:
       - name: Push backend to DockerHub
         uses: docker/build-push-action@v4
         with:
-          context: ./backend/
+          context: .
+          file: ./backend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
 
@@ -100,7 +101,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.production.yml,data"
+          source: "docker-compose.production.yml"
           target: "foodgram"
 
       - name: Deploy Foodgram
@@ -115,6 +116,7 @@ jobs:
             sudo docker compose -f docker-compose.production.yml down
             sudo docker compose -f docker-compose.production.yml up -d
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py migrate
+            sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py import_ingredients
             sudo docker compose -f docker-compose.production.yml exec -T backend python manage.py collectstatic --noinput
             sudo docker compose -f docker-compose.production.yml exec -T backend cp -r /app/collected_static/. /backend_static/
 

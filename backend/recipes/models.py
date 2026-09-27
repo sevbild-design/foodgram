@@ -5,7 +5,7 @@ from django.db import models
 from recipes.constants import (INGREDIENT_NAME_MAX_LENGTH,
                                MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
                                MIN_INGREDIENT_AMOUNT, RECIPE_NAME_MAX_LENGTH,
-                               TAG_MAX_LENGTH)
+                               SLUG_MAX_LENGTH, TAG_MAX_LENGTH)
 
 
 class Tag(models.Model):
@@ -23,7 +23,7 @@ class Tag(models.Model):
     )
     slug = models.SlugField(
         verbose_name='Идентификатор',
-        max_length=TAG_MAX_LENGTH,
+        max_length=SLUG_MAX_LENGTH,
         unique=True,
     )
 

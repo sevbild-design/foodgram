@@ -28,7 +28,6 @@ services:
     volumes:
       - static:/backend_static
       - media:/app/media
-      - ./data:/data:ro
 
     expose:
       - "8000"
@@ -39,7 +38,7 @@ services:
       - frontend:/frontend_static
   gateway:
     image: ${DOCKER_USERNAME}/foodgram_gateway:latest
-
+    restart: always
     depends_on:
       - backend
       - frontend
