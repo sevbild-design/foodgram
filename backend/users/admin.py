@@ -54,14 +54,8 @@ class CustomUserAdmin(UserAdmin):
 
     @admin.display(description='Аватар')
     def avatar_preview(self, user):
-        """Вернуть HTML-разметку с превью аватара пользователя."""
-
-        # У нового пользователя аватар может отсутствовать.
         if user is None or not user.avatar:
             return 'Аватар отсутствует'
-
-        # border-radius: 50% делает изображение круглым.
-        # object-fit: cover не позволяет изображению растягиваться.
         return format_html(
             '<img src="{}" width="100" height="100" '
             'style="object-fit: cover; border-radius: 50%;" />',
