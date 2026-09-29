@@ -27,7 +27,7 @@ class User(AbstractUser):
         unique=True,
     )
     avatar = models.ImageField(
-        verbose_name='Аватар',
+        verbose_name='Ссылка на аватар',
         upload_to='users/avatars/',
         blank=True,
         null=True,
@@ -45,7 +45,7 @@ class User(AbstractUser):
         verbose_name_plural = 'пользователи'
 
     def __str__(self):
-        return self.username
+        return f'{self.first_name} {self.last_name}'
 
 
 class Subscription(models.Model):

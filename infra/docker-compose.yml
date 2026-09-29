@@ -20,7 +20,8 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: ..
+      dockerfile: ./backend/Dockerfile
     env_file:
       - ../.env
     depends_on:
@@ -30,12 +31,10 @@ services:
     command:
       - /bin/sh
       - -c
-      - python manage.py migrate && python manage.py collectstatic --noinput && exec gunicorn --bind 0.0.0.0:8000 foodgram.wsgi:application
+      - python manage.py migrate && python manage.py collectstatic --noinput && python manage.py import_ingredients && exec gunicorn --bind 0.0.0.0:8000 foodgram.wsgi:application
     volumes:
-      - static:/app/backend_static
+      - static:/app/collected_static
       - media:/app/media
-      - ../data:/data:ro
-
     expose:
       - "8000"
 

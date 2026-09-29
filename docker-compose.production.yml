@@ -26,7 +26,8 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - static:/backend_static
+      # - static:/backend_static
+      - static:/app/collected_static
       - media:/app/media
 
     expose:

@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
                             ShoppingCart, Tag)
+from django.utils.html import format_html
 
 
 @admin.register(Tag)
@@ -78,6 +79,8 @@ class RecipeAdmin(admin.ModelAdmin):
     search_fields = (
         'name',
         'author__username',
+        'author__first_name',
+        'author__last_name',
         'author__email',
     )
     list_filter = (
@@ -85,6 +88,7 @@ class RecipeAdmin(admin.ModelAdmin):
     )
     readonly_fields = (
         'favorite_count',
+        'image_preview',
     )
     inlines = (
         IngredientInRecipeInline,
@@ -92,6 +96,29 @@ class RecipeAdmin(admin.ModelAdmin):
     list_select_related = (
         'author',
     )
+    fieldsets = (
+        (None, {
+            'fields': [
+                'name',
+                'author',
+                ('text', 'cooking_time', 'tags')] 
+        }),
+        ('Изображение рецепта', {
+            'fields': [
+                'image',
+                'image_preview'
+            ],
+        })
+    )
+
+    @admin.display(description='Фото')
+    def image_preview(self, recipe):
+        return format_html(
+            '<img src="{}" width="120" '
+            'style="max-height: 200px; object-fit: cover; '
+            'border-radius: 6px;" />',
+            recipe.image.url,
+        )
 
     @admin.display(description='Добавлений в избранное')
     def favorite_count(self, obj):
@@ -108,6 +135,8 @@ class FavoriteAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'user__username',
+        'user__first_name',
+        'user__last_name',
         'recipe__name',
     )
 
@@ -122,5 +151,7 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'user__username',
+        'user__first_name',
+        'user__last_name',
         'recipe__name',
     )
