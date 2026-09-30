@@ -1,4 +1,4 @@
-import { Title, Container, Main } from '../../components'
+import { Container, Main } from '../../components'
 import styles from './styles.module.css'
 import MetaTags from 'react-meta-tags'
 
@@ -6,9 +6,9 @@ const Technologies = () => {
   
   return <Main>
     <MetaTags>
-      <title>О проекте</title>
-      <meta name="description" content="Фудграм - Технологии" />
-      <meta property="og:title" content="О проекте" />
+      <title>Технологии</title>
+      <meta name="description" content="Технологии проекта Foodgram" />
+      <meta property="og:title" content="Технологии" />
     </MetaTags>
     
     <Container>
