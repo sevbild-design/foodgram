@@ -4,9 +4,8 @@ from io import BytesIO
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
-from rest_framework.test import APIClient
-
 from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
+from rest_framework.test import APIClient
 from tests.constants import INGREDIENT_AMOUNT
 
 

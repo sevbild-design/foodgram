@@ -1,22 +1,21 @@
-from django.contrib.auth import get_user_model
-from django.db.models import Count, Exists, OuterRef, Prefetch, Sum
-from django.http import HttpResponse
-from djoser.views import UserViewSet as DjoserUserViewSet
-from rest_framework import status
-from rest_framework.decorators import action
-from rest_framework.permissions import (AllowAny, IsAuthenticated,
-                                        IsAuthenticatedOrReadOnly)
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
-
 from api.filters import IngredientFilter, RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import (AvatarSerializer, IngredientSerializer,
                              RecipeReadSerializer, RecipeShortSerializer,
                              RecipeWriteSerializer, TagSerializer,
                              UserWithRecipesSerializer)
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Exists, OuterRef, Prefetch, Sum
+from django.http import HttpResponse
+from djoser.views import UserViewSet as DjoserUserViewSet
 from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
                             ShoppingCart, Tag)
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.permissions import (AllowAny, IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from users.models import Subscription
 
 User = get_user_model()

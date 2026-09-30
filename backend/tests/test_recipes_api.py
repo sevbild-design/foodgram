@@ -1,8 +1,7 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework import status
-
 from recipes.models import Favorite, IngredientInRecipe, Recipe, ShoppingCart
+from rest_framework import status
 from tests.conftest import PNG_BYTES
 from tests.constants import (INGREDIENT_AMOUNT, NEW_INGREDIENT_AMOUNT,
                              NEW_RECIPE_NAME)

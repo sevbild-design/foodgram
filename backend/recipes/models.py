@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
-
 from recipes.constants import (INGREDIENT_NAME_MAX_LENGTH,
                                MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
                                MIN_INGREDIENT_AMOUNT, RECIPE_NAME_MAX_LENGTH,

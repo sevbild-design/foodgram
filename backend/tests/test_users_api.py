@@ -1,6 +1,5 @@
 import pytest
 from rest_framework import status
-
 from tests.conftest import BASE64_IMAGE
 from users.models import Subscription
 
