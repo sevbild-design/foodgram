@@ -90,13 +90,13 @@ POSTGRES_USER=foodgram_user
 POSTGRES_PASSWORD=change_me
 DB_HOST=db
 DB_PORT=5432
-
+USE_SQLITE=False
 SECRET_KEY=change_me
 DEBUG=False
 ALLOWED_HOSTS=foodgram.example.com,localhost,127.0.0.1
 CSRF_TRUSTED_ORIGINS=https://foodgram.example.com
 
-DOCKER_USERNAME=wantedpa
+DOCKER_USERNAME=username
 ```
 
 | Переменная | Назначение |
@@ -108,6 +108,7 @@ DOCKER_USERNAME=wantedpa
 | `DB_PORT` | порт PostgreSQL |
 | `SECRET_KEY` | секретный ключ Django |
 | `DEBUG` | режим отладки Django |
+| `USE_SQLITE` | выбор используемой DB |
 | `ALLOWED_HOSTS` | список разрешённых хостов Django |
 | `CSRF_TRUSTED_ORIGINS` | доверенные HTTPS-адреса для CSRF-проверки |
 | `DOCKER_USERNAME` | имя пользователя на Docker Hub |
@@ -278,6 +279,38 @@ sudo docker compose -f docker-compose.production.yml up -d
 sudo docker compose -f docker-compose.production.yml ps
 ```
 
+### Создание суперпользователя после деплоя
+
+После первого успешного запуска production-контейнеров перейдите в каталог
+проекта на сервере:
+
+```bash
+cd ~/foodgram
+```
+
+Убедитесь, что backend запущен:
+
+```bash
+sudo docker compose -f docker-compose.production.yml ps
+```
+
+Создайте суперпользователя внутри backend-контейнера:
+
+```bash
+sudo docker compose -f docker-compose.production.yml exec backend \
+  python manage.py createsuperuser
+```
+
+Django последовательно запросит email, username, имя, фамилию и пароль.
+Введённый пароль в терминале не отображается — это нормальное поведение.
+
+После создания учётной записи административная панель будет доступна по
+адресу:
+
+```text
+https://foodgram.example.com/admin/
+```
+
 ## API
 
 Основные группы эндпоинтов:
@@ -298,6 +331,236 @@ sudo docker compose -f docker-compose.production.yml ps
 ```text
 /api/docs/
 ```
+
+## Примеры API-запросов
+
+В примерах используется локальный адрес `http://localhost`. Для развёрнутого
+проекта замените его на адрес production-сервера.
+
+### Регистрация пользователя
+
+Запрос:
+
+```http
+POST /api/users/
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "username": "foodgram_user",
+  "first_name": "Иван",
+  "last_name": "Иванов",
+  "password": "StrongPassword123"
+}
+```
+
+Ответ `201 Created`:
+
+```json
+{
+  "email": "user@example.com",
+  "id": 1,
+  "username": "foodgram_user",
+  "first_name": "Иван",
+  "last_name": "Иванов"
+}
+```
+
+### Получение токена
+
+Запрос:
+
+```http
+POST /api/auth/token/login/
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "StrongPassword123"
+}
+```
+
+Ответ `200 OK`:
+
+```json
+{
+  "auth_token": "0123456789abcdef0123456789abcdef01234567"
+}
+```
+
+Полученный токен передаётся в заголовке всех запросов, требующих
+авторизации:
+
+```http
+Authorization: Token 0123456789abcdef0123456789abcdef01234567
+```
+
+### Поиск ингредиентов
+
+Запрос:
+
+```http
+GET /api/ingredients/?name=мол
+```
+
+Ответ `200 OK`:
+
+```json
+[
+  {
+    "id": 1523,
+    "name": "молоко",
+    "measurement_unit": "мл"
+  },
+  {
+    "id": 1524,
+    "name": "молоко кокосовое",
+    "measurement_unit": "г"
+  }
+]
+```
+
+### Создание рецепта
+
+Запрос:
+
+```http
+POST /api/recipes/
+Authorization: Token 0123456789abcdef0123456789abcdef01234567
+Content-Type: application/json
+
+{
+  "ingredients": [
+    {
+      "id": 1523,
+      "amount": 200
+    }
+  ],
+  "tags": [1],
+  "image": "data:image/png;base64,iVBORw0KGgoAAA...",
+  "name": "Молочная каша",
+  "text": "Смешать ингредиенты и варить до готовности.",
+  "cooking_time": 15
+}
+```
+
+Ответ `201 Created`:
+
+```json
+{
+  "id": 10,
+  "tags": [
+    {
+      "id": 1,
+      "name": "Завтрак",
+      "slug": "breakfast"
+    }
+  ],
+  "author": {
+    "email": "user@example.com",
+    "id": 1,
+    "username": "foodgram_user",
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "is_subscribed": false,
+    "avatar": null
+  },
+  "ingredients": [
+    {
+      "id": 1523,
+      "name": "молоко",
+      "measurement_unit": "мл",
+      "amount": 200
+    }
+  ],
+  "is_favorited": false,
+  "is_in_shopping_cart": false,
+  "name": "Молочная каша",
+  "image": "http://localhost/media/recipes/images/example.png",
+  "text": "Смешать ингредиенты и варить до готовности.",
+  "cooking_time": 15
+}
+```
+
+### Добавление рецепта в избранное
+
+Запрос:
+
+```http
+POST /api/recipes/10/favorite/
+Authorization: Token 0123456789abcdef0123456789abcdef01234567
+```
+
+Ответ `201 Created`:
+
+```json
+{
+  "id": 10,
+  "name": "Молочная каша",
+  "image": "http://localhost/media/recipes/images/example.png",
+  "cooking_time": 15
+}
+```
+
+Для удаления рецепта из избранного отправляется запрос `DELETE` на тот же
+адрес. Успешный ответ имеет статус `204 No Content`.
+
+## Тестирование
+
+Backend покрыт автоматическими тестами на `pytest` и `pytest-django`. Тесты
+проверяют:
+
+- публичные справочники тегов и ингредиентов;
+- регистрацию, получение токена и профиль текущего пользователя;
+- установку и удаление аватара;
+- подписки на авторов и ограничение списка их рецептов;
+- создание и изменение рецептов;
+- права доступа к чужим рецептам;
+- валидацию обязательных, повторяющихся и связанных данных;
+- избранное и список покупок;
+- фильтрацию рецептов;
+- формирование и скачивание списка покупок;
+- ограничения уникальности моделей;
+
+Для запуска установите зависимости, перейдите в каталог `backend` и выполните:
+
+```bash
+pytest
+```
+
+Полезные варианты:
+
+```bash
+# Краткий вывод
+pytest -q
+
+# Подробный список тестов
+pytest -v
+
+# Только тесты API рецептов
+pytest tests/test_recipes_api.py
+
+# Остановиться после первой ошибки
+pytest -x
+```
+
+Тесты используют отдельные настройки `foodgram.test_settings` и временную
+SQLite-базу. Рабочая PostgreSQL и данные запущенного приложения не изменяются.
+При успешном запуске текущего набора выводится результат:
+
+```text
+33 passed
+```
+
+### Автоматическое тестирование в GitHub Actions
+
+При отправке изменений в репозиторий GitHub Actions автоматически проверяет
+backend проекта.
+
+В workflow выполняются две проверки:
+
+- `pytest` — запуск автоматических тестов Django REST API;
+- `flake8` — проверка Python-кода на соответствие требованиям PEP 8.
 
 ## Развёрнутый проект
 

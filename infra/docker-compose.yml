@@ -44,7 +44,9 @@ services:
     volumes:
       - frontend:/frontend_static
   nginx:
-    build: .
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
 
     depends_on:
       - backend
