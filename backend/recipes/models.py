@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+
 from recipes.constants import (INGREDIENT_NAME_MAX_LENGTH,
                                MEASUREMENT_UNIT_MAX_LENGTH, MIN_COOKING_TIME,
                                MIN_INGREDIENT_AMOUNT, RECIPE_NAME_MAX_LENGTH,
@@ -106,7 +107,6 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         Tag,
-        related_name='recipes',
         verbose_name='Теги',
     )
     created_at = models.DateTimeField(
@@ -167,12 +167,11 @@ class IngredientInRecipe(models.Model):
         )
 
 
-class Favorite(models.Model):
+class ShoppingCartFavoriteCreatedModel(models.Model):
     """
-    Модель избранное.
+    Абстрактная модель.
 
-    Рецепт, добавленный пользователем в избранное.
-    Пара пользователь-рецепт уникальна.
+    Добавляет в модели поля user и recipe.
     """
 
     user = models.ForeignKey(
@@ -185,6 +184,21 @@ class Favorite(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
     )
+
+    class Meta:
+        abstract = True
+
+    def __str__(self):
+        return f'{self.user}: {self.recipe.name}'
+
+
+class Favorite(ShoppingCartFavoriteCreatedModel):
+    """
+    Модель избранное.
+
+    Рецепт, добавленный пользователем в избранное.
+    Пара пользователь-рецепт уникальна.
+    """
 
     class Meta:
         default_related_name = 'favorites'
@@ -197,28 +211,14 @@ class Favorite(models.Model):
             ),
         )
 
-    def __str__(self):
-        return f'{self.user}: {self.recipe.name}'
 
-
-class ShoppingCart(models.Model):
+class ShoppingCart(ShoppingCartFavoriteCreatedModel):
     """
     Список покупок.
 
     Рецепт, добавленный пользователем в список покупок.
     При удалении пользователя или рецепта связанная запись тоже удаляется.
     """
-
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        verbose_name='Пользователь',
-    )
-    recipe = models.ForeignKey(
-        Recipe,
-        on_delete=models.CASCADE,
-        verbose_name='Рецепт',
-    )
 
     class Meta:
         default_related_name = 'shopping_cart'
@@ -230,6 +230,3 @@ class ShoppingCart(models.Model):
                 name='unique_user_shopping_cart_recipe',
             ),
         )
-
-    def __str__(self):
-        return f'{self.user}: {self.recipe.name}'

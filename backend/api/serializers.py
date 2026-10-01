@@ -1,29 +1,13 @@
-from api.fields import Base64ImageField
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from djoser.serializers import \
-    UserCreateSerializer as DjoserUserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
-from recipes.constants import MIN_COOKING_TIME, MIN_INGREDIENT_AMOUNT
-from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
 from rest_framework import serializers
 
+from api.fields import RequiredBase64ImageField
+from recipes.constants import MIN_COOKING_TIME, MIN_INGREDIENT_AMOUNT
+from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
+
 User = get_user_model()
-
-
-class UserCreateSerializer(DjoserUserCreateSerializer):
-    """Сериализатор регистрации пользователя."""
-
-    class Meta(DjoserUserCreateSerializer.Meta):
-        model = User
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'password',
-        )
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -78,7 +62,7 @@ class UserSerializer(DjoserUserSerializer):
 class AvatarSerializer(serializers.ModelSerializer):
     """Проверяет и сохраняет аватар текущего пользователя."""
 
-    avatar = Base64ImageField(
+    avatar = RequiredBase64ImageField(
         required=True,
         allow_null=False,
     )
@@ -312,7 +296,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     Проверка данных и создание или обновление рецепта.
 
     Изображение принимается как строка Base64 и преобразуется в
-    файл с помощью Base64ImageField.
+    файл с помощью RequiredBase64ImageField.
     Минимальное время приготовления ограничено константой MIN_COOKING_TIME.
     Поля ingredients и tags обязательны как при создании,
     так и при частичном обновлении рецепта.
@@ -323,27 +307,23 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     заменяются данными из запроса. После сохранения результат передаётся
     RecipeReadSerializer, чтобы API вернул полное представление рецепта,
     а не входной формат с идентификаторами.
+
     Методы:
-    validate_ingredients:
-    Проверяет, что один ингредиент не указан в рецепте несколько раз.
-    При обнаружении повторяющихся идентификаторов возвращает
-    ошибку валидации поля ingredients.
-    validate_tags:
-    Проверяет уникальность тегов внутри одного рецепта.
-    Повторяющиеся идентификаторы вызывают ошибку валидации.
     validate:
-    Выполняет общую проверку запроса и требует присутствия полей
-    ingredients и tags, включая запросы PATCH.
+    Проверяет наличие тегов и ингредиентов, а также запрещает повторение
+    одного тега или ингредиента внутри рецепта.
+
     _create_recipe_ingredients:
     Формирует объекты промежуточной модели IngredientInRecipe
     и сохраняет все связи одним вызовом bulk_create.
+
     create:
-    Извлекает данные тегов и ингредиентов, создаёт основной объект Recipe,
-    устанавливает теги и сохраняет состав рецепта.
-    Поле author передаётся представлением при вызове save().
+    Создаёт рецепт и устанавливает его теги и ингредиенты.
+
     update:
     Обновляет основные поля рецепта, заменяет набор тегов, удаляет
     прежний состав и создаёт новые связи с ингредиентами.
+
     to_representation:
     Передаёт сохранённый объект в RecipeReadSerializer и возвращает
     полную структуру рецепта для ответа API.
@@ -358,7 +338,10 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         many=True,
         allow_empty=False,
     )
-    image = Base64ImageField()
+    image = RequiredBase64ImageField(
+        required=True,
+        allow_null=False,
+    )
     cooking_time = serializers.IntegerField(
         min_value=MIN_COOKING_TIME,
     )
@@ -374,34 +357,40 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
-    def validate_ingredients(self, ingredients):
-
-        ingredient_ids = [
-            item['ingredient'].id
-            for item in ingredients
-        ]
-        if len(ingredient_ids) != len(set(ingredient_ids)):
+    def validate_image(self, image):
+        if image is None:
             raise serializers.ValidationError(
-                'Ингредиенты в рецепте не должны повторяться.'
+                'Изображение не может быть пустым.'
             )
-        return ingredients
 
-    def validate_tags(self, tags):
-
-        tag_ids = [tag.id for tag in tags]
-        if len(tag_ids) != len(set(tag_ids)):
-            raise serializers.ValidationError(
-                'Теги в рецепте не должны повторяться.'
-            )
-        return tags
+        return image
 
     def validate(self, attrs):
 
         errors = {}
-        if 'ingredients' not in self.initial_data:
+        ingredients = attrs.get('ingredients')
+        tags = attrs.get('tags')
+
+        if ingredients is None:
             errors['ingredients'] = 'Обязательное поле.'
-        if 'tags' not in self.initial_data:
+        else:
+            ingredient_ids = [
+                item['ingredient'].id
+                for item in ingredients
+            ]
+            if len(ingredient_ids) != len(set(ingredient_ids)):
+                errors['ingredients'] = (
+                    'Ингредиенты в рецепте не должны повторяться.'
+                )
+        if tags is None:
             errors['tags'] = 'Обязательное поле.'
+        else:
+            tag_ids = [tag.id for tag in tags]
+
+            if len(tag_ids) != len(set(tag_ids)):
+                errors['tags'] = (
+                    'Теги в рецепте не должны повторяться.'
+                )
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -418,7 +407,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             )
             for item in ingredients
         ]
-        IngredientInRecipe.objects.bulk_create(ingredient_relations)
+        IngredientInRecipe.objects.bulk_create(
+            ingredient_relations
+        )
 
     @transaction.atomic
     def create(self, validated_data):
@@ -427,8 +418,10 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags')
         recipe = Recipe.objects.create(**validated_data)
         recipe.tags.set(tags)
-        self._create_recipe_ingredients(recipe, ingredients)
-
+        self._create_recipe_ingredients(
+            recipe,
+            ingredients,
+        )
         return recipe
 
     @transaction.atomic
@@ -436,12 +429,19 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
-        instance = super().update(instance, validated_data)
         instance.tags.set(tags)
-        IngredientInRecipe.objects.filter(recipe=instance).delete()
-        self._create_recipe_ingredients(instance, ingredients)
+        IngredientInRecipe.objects.filter(
+            recipe=instance,
+        ).delete()
+        self._create_recipe_ingredients(
+            instance,
+            ingredients,
+        )
 
-        return instance
+        return super().update(
+            instance,
+            validated_data,
+        )
 
     def to_representation(self, instance):
 

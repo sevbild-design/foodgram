@@ -1,5 +1,6 @@
 from django_filters import rest_framework as filters
-from recipes.models import Ingredient, Recipe, Tag
+
+from recipes.models import Ingredient, Recipe
 
 BOOLEAN_FILTER_CHOICES = (
     ('0', 'Нет'),
@@ -54,14 +55,8 @@ class RecipeFilter(filters.FilterSet):
     рецепты по корзине.
     """
 
-    author = filters.NumberFilter(
-        field_name='author_id',
-    )
-    tags = filters.ModelMultipleChoiceFilter(
+    tags = filters.AllValuesMultipleFilter(
         field_name='tags__slug',
-        to_field_name='slug',
-        queryset=Tag.objects.all(),
-        distinct=True,
     )
     is_favorited = filters.ChoiceFilter(
         choices=BOOLEAN_FILTER_CHOICES,

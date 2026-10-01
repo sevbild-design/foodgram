@@ -1,5 +1,6 @@
 import pytest
 from django.db import IntegrityError, transaction
+
 from recipes.models import Favorite, Ingredient, ShoppingCart
 from users.models import Subscription
 

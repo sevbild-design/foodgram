@@ -1,21 +1,24 @@
-from api.filters import IngredientFilter, RecipeFilter
-from api.permissions import IsAuthorOrReadOnly
-from api.serializers import (AvatarSerializer, IngredientSerializer,
-                             RecipeReadSerializer, RecipeShortSerializer,
-                             RecipeWriteSerializer, TagSerializer,
-                             UserWithRecipesSerializer)
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Exists, OuterRef, Prefetch, Sum
-from django.http import HttpResponse
+from django.http import FileResponse
 from djoser.views import UserViewSet as DjoserUserViewSet
-from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
-                            ShoppingCart, Tag)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import (AllowAny, IsAuthenticated,
                                         IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+
+from api.filters import IngredientFilter, RecipeFilter
+from api.permissions import IsAuthorOrReadOnly
+from api.serializers import (AvatarSerializer, IngredientSerializer,
+                             RecipeReadSerializer, RecipeShortSerializer,
+                             RecipeWriteSerializer, TagSerializer,
+                             UserWithRecipesSerializer)
+from recipes.models import (Favorite, Ingredient, IngredientInRecipe, Recipe,
+                            ShoppingCart, Tag)
 from users.models import Subscription
 
 User = get_user_model()
@@ -416,11 +419,17 @@ class RecipeViewSet(ModelViewSet):
                 f'{name} ({measurement_unit}) — {total_amount}'
             )
         file_content = '\n'.join(shopping_list)
-        response = HttpResponse(
-            file_content,
+        # response = HttpResponse(
+        #     file_content,
+        #     content_type='text/plain; charset=utf-8',
+        # )
+        # response['Content-Disposition'] = (
+        #     'attachment; filename="shopping_list.txt"'
+        # )
+        # return response
+        return FileResponse(
+            BytesIO(file_content.encode('utf-8')),
+            as_attachment=True,
+            filename='shopping_list.txt',
             content_type='text/plain; charset=utf-8',
         )
-        response['Content-Disposition'] = (
-            'attachment; filename="shopping_list.txt"'
-        )
-        return response

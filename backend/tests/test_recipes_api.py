@@ -1,7 +1,8 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from recipes.models import Favorite, IngredientInRecipe, Recipe, ShoppingCart
 from rest_framework import status
+
+from recipes.models import Favorite, IngredientInRecipe, Recipe, ShoppingCart
 from tests.conftest import PNG_BYTES
 from tests.constants import (INGREDIENT_AMOUNT, NEW_INGREDIENT_AMOUNT,
                              NEW_RECIPE_NAME)
@@ -307,10 +308,11 @@ def test_download_shopping_cart_sums_ingredients(
     response = auth_client.get('/api/recipes/download_shopping_cart/')
     assert response.status_code == status.HTTP_200_OK
     assert response['Content-Type'].startswith('text/plain')
+    file_content = b''.join(response.streaming_content).decode('utf-8')
     assert (
         'Молоко (мл) — '
         f'{INGREDIENT_AMOUNT + NEW_INGREDIENT_AMOUNT}'
-    ) in response.content.decode(), (
+    ) in file_content, (
         'Количество одинакового ингредиента из разных рецептов должно '
         'суммироваться.'
     )

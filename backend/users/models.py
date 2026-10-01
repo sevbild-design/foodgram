@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
 from users.constants import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 
 

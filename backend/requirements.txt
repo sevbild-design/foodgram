@@ -11,3 +11,4 @@ python-dotenv==1.0.1
 django-filter==24.3
 flake8==7.4.1
 flake8-isort==7.0.0
+drf-extra-fields==3.7.0
