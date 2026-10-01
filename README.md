@@ -1,7 +1,10 @@
-https://github.com/sevbild-design/foodgram
 # Foodgram
 
 [![Main Foodgram workflow](https://github.com/sevbild-design/foodgram/actions/workflows/main.yml/badge.svg)](https://github.com/sevbild-design/foodgram/actions/workflows/main.yml)
+
+
+***Развёрнутый проект [https://sevbild.ru](https://sevbild.ru)***
+
 
 Foodgram — веб-приложение для публикации рецептов и формирования списка
 покупок.
