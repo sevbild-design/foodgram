@@ -3,6 +3,8 @@ volumes:
   static:
   media:
   frontend:
+  postgres_data:
+  pgadmin_data:
 services:
   db:
     image: postgres:13
@@ -17,6 +19,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4:9.18
+    restart: unless-stopped
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+
+    ports:
+      - "127.0.0.1:5050:80"
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    depends_on:
+      - db
 
   backend:
     image: ${DOCKER_USERNAME}/foodgram_backend:latest
