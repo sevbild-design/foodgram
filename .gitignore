@@ -1,6 +1,7 @@
 frontend/node_modules
 infra/frontend/build
 .env
+deploy.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
